@@ -3,13 +3,16 @@ from __future__ import annotations
 import hashlib
 import hmac
 import json
+import math
 import os
 import secrets
 import sqlite3
+import time
 import urllib.error
 import urllib.parse
 import urllib.request
 from contextlib import contextmanager
+from contextvars import ContextVar
 from dataclasses import dataclass
 from datetime import date, datetime, timedelta, timezone
 from pathlib import Path
@@ -107,6 +110,30 @@ class MetaError(RuntimeError):
         self.code = code
         self.subcode = subcode
         self.reconnect = reconnect
+
+
+class MetaSyncTimeout(MetaError):
+    """A task deadline must escape optional-metric and highlight fallbacks."""
+
+
+# Context-local: concurrent OAuth/status calls and later syncs share no deadline.
+_SYNC_DEADLINE: ContextVar[tuple[float, float] | None] = ContextVar(
+    "meta_sync_deadline", default=None
+)
+
+
+def _sync_seconds_remaining() -> float | None:
+    budget = _SYNC_DEADLINE.get()
+    if budget is None:
+        return None
+    deadline, limit = budget
+    remaining = deadline - time.monotonic()
+    if remaining <= 0:
+        raise MetaSyncTimeout(
+            f"Meta 数据同步超过总时限（{limit:g} 秒），已停止读取。"
+            "请稍后重试，或联系管理员调整同步时限。"
+        )
+    return remaining
 
 
 class TokenVault:
@@ -397,9 +424,22 @@ class MetaRepository:
 class MetaGraphClient:
     ALLOWED_HOSTS = {"graph.facebook.com"}
 
-    def __init__(self, settings: MetaSettings, timeout: int = 35):
+    def __init__(
+        self,
+        settings: MetaSettings,
+        timeout: int = 35,
+        *,
+        sync_timeout: float | None = None,
+    ):
         self.settings = settings
         self.timeout = timeout
+        self.sync_timeout = float(
+            sync_timeout
+            if sync_timeout is not None
+            else _env("META_SYNC_TIMEOUT_SECONDS", "1200")
+        )
+        if not math.isfinite(self.sync_timeout) or self.sync_timeout <= 0:
+            raise ValueError("META_SYNC_TIMEOUT_SECONDS 必须是大于 0 的秒数")
 
     def authorization_url(self, state: str) -> str:
         params = {
@@ -419,6 +459,10 @@ class MetaGraphClient:
         )
 
     def _request_json(self, url: str) -> dict[str, Any]:
+        remaining = _sync_seconds_remaining()
+        request_timeout = (
+            min(self.timeout, remaining) if remaining is not None else self.timeout
+        )
         parsed = urllib.parse.urlparse(url)
         if parsed.scheme != "https" or parsed.hostname not in self.ALLOWED_HOSTS:
             raise MetaError("Meta API 地址校验失败")
@@ -430,7 +474,7 @@ class MetaGraphClient:
             },
         )
         try:
-            with urllib.request.urlopen(request, timeout=self.timeout) as response:
+            with urllib.request.urlopen(request, timeout=request_timeout) as response:
                 payload = response.read(8 * 1024 * 1024)
         except urllib.error.HTTPError as exc:
             payload = exc.read(1024 * 1024)
@@ -449,7 +493,9 @@ class MetaGraphClient:
                 reconnect=code == 190,
             ) from exc
         except (urllib.error.URLError, TimeoutError) as exc:
+            _sync_seconds_remaining()
             raise MetaError("连接 Meta API 超时或网络不可用") from exc
+        _sync_seconds_remaining()
         try:
             result = json.loads(payload.decode("utf-8"))
         except Exception as exc:
@@ -689,6 +735,8 @@ class MetaGraphClient:
                     f"{object_id}/insights", token=token, params=params
                 )
             except MetaError as exc:
+                if exc.reconnect or isinstance(exc, MetaSyncTimeout):
+                    raise
                 last_error = exc
         raise last_error or MetaError(f"{metric} breakdown 请求失败")
 
@@ -703,6 +751,7 @@ class MetaGraphClient:
         period: str = "day",
         breakdown: str | None = None,
         metric_type: str | None = "total_value",
+        progress_callback: Callable[[int, int, str], None] | None = None,
     ) -> tuple[dict[str, Any] | None, str | None]:
         try:
             start = date.fromisoformat(since)
@@ -721,7 +770,18 @@ class MetaGraphClient:
 
         combined: list[dict[str, Any]] = []
         errors: list[str] = []
-        for window_since, window_until in windows:
+        for index, (window_since, window_until) in enumerate(windows, 1):
+            _sync_seconds_remaining()
+            try:
+                display_end = (
+                    date.fromisoformat(window_until) - timedelta(days=1)
+                ).isoformat()
+            except ValueError:
+                display_end = window_until
+            detail = f"第 {index}/{len(windows)} 段 · {window_since}—{display_end}"
+            if progress_callback:
+                progress_callback(index - 1, len(windows), detail + " · 读取中")
+            outcome = "已读取"
             try:
                 payload = self._insight(
                     object_id,
@@ -733,11 +793,15 @@ class MetaGraphClient:
                     breakdown=breakdown,
                     metric_type=metric_type,
                 )
+                _sync_seconds_remaining()
                 combined.extend(payload.get("data") or [])
             except MetaError as exc:
-                if exc.reconnect:
+                if exc.reconnect or isinstance(exc, MetaSyncTimeout):
                     raise
                 errors.append(f"{window_since}—{window_until}: {exc}")
+                outcome = "未取得"
+            if progress_callback:
+                progress_callback(index, len(windows), detail + " · " + outcome)
 
         if not combined:
             return None, errors[0] if errors else None
@@ -753,9 +817,54 @@ class MetaGraphClient:
         report_end: str,
         progress_callback: Callable[[int, str], None] | None = None,
     ) -> dict[str, Any]:
+        context_token = _SYNC_DEADLINE.set(
+            (time.monotonic() + self.sync_timeout, self.sync_timeout)
+        )
+        try:
+            result = self._sync(
+                asset,
+                instagram_id=instagram_id,
+                report_start=report_start,
+                report_end=report_end,
+                progress_callback=progress_callback,
+            )
+            _sync_seconds_remaining()
+            return result
+        finally:
+            _SYNC_DEADLINE.reset(context_token)
+
+    def _sync(
+        self,
+        asset: dict[str, Any],
+        *,
+        instagram_id: str | None,
+        report_start: str,
+        report_end: str,
+        progress_callback: Callable[[int, str], None] | None = None,
+    ) -> dict[str, Any]:
         def progress(value: int, message: str):
+            _sync_seconds_remaining()
             if progress_callback:
                 progress_callback(value, message)
+
+        def read_insight(
+            object_id: str,
+            metric: str,
+            *,
+            label: str,
+            progress_start: int,
+            progress_end: int,
+            **kwargs,
+        ):
+            def window_progress(completed: int, total: int, detail: str):
+                value = progress_start + (
+                    (progress_end - progress_start) * completed // total
+                )
+                progress(value, f"正在读取 {label}（{detail}）")
+
+            return self._safe_insight(
+                object_id, metric, progress_callback=window_progress, **kwargs
+            )
 
         start = date.fromisoformat(report_start)
         end = date.fromisoformat(report_end)
@@ -795,9 +904,12 @@ class MetaGraphClient:
             "likes": None,
         }
 
-        total_views_raw, error = self._safe_insight(
+        total_views_raw, error = read_insight(
             page_id,
             "page_media_view",
+            label="Facebook 浏览量",
+            progress_start=30,
+            progress_end=34,
             token=token,
             since=report_start,
             until=until,
@@ -806,9 +918,12 @@ class MetaGraphClient:
         if error:
             warnings.append(f"Facebook 浏览量：{error}")
         total_views = _metric_total(total_views_raw, additive=True)
-        breakdown_raw, breakdown_error = self._safe_insight(
+        breakdown_raw, breakdown_error = read_insight(
             page_id,
             "page_media_view",
+            label="Facebook 自然/付费浏览拆分",
+            progress_start=34,
+            progress_end=38,
             token=token,
             since=report_start,
             until=until,
@@ -831,25 +946,17 @@ class MetaGraphClient:
                 "Facebook 已取得总浏览量，但 API 未返回自然/付费拆分；请在手动入口补充自然浏览量。"
             )
         if fb_values["views"] is not None:
-            daily_views_raw, daily_views_error = self._safe_insight(
-                page_id,
-                "page_media_view",
-                token=token,
-                since=report_start,
-                until=until,
-                metric_type=None,
-            )
+            # Same daily response powers both the overview and monthly series.
             _merge_monthly_metric(
-                fb_monthly, "views", _metric_monthly(daily_views_raw)
+                fb_monthly, "views", _metric_monthly(total_views_raw)
             )
-            if daily_views_error:
-                warnings.append(
-                    f"Facebook 月度浏览趋势未返回：{daily_views_error}"
-                )
 
-        viewers_raw, viewers_error = self._safe_insight(
+        viewers_raw, viewers_error = read_insight(
             page_id,
             "page_total_media_view_unique",
+            label="Facebook 浏览人数与日度触达",
+            progress_start=38,
+            progress_end=42,
             token=token,
             since=report_start,
             until=until,
@@ -861,32 +968,27 @@ class MetaGraphClient:
         elif viewers_error:
             warnings.append(f"Facebook 浏览人数：{viewers_error}")
         if paid_views in (None, 0):
-            daily_reach_raw, daily_reach_error = self._safe_insight(
-                page_id,
-                "page_total_media_view_unique",
-                token=token,
-                since=report_start,
-                until=until,
-                metric_type=None,
-            )
             _merge_monthly_metric(
                 fb_monthly,
                 "daily_reach_sum",
-                _metric_monthly(daily_reach_raw),
+                _metric_monthly(viewers_raw),
             )
-            if daily_reach_error:
+            if viewers_error:
                 warnings.append(
                     "Facebook 月度日度触达累计未返回："
-                    f"{daily_reach_error}"
+                    f"{viewers_error}"
                 )
 
-        for key, metric in (
-            ("interactions", "page_post_engagements"),
-            ("likes", "page_actions_post_reactions_like_total"),
+        for key, metric, label, progress_start in (
+            ("interactions", "page_post_engagements", "互动次数", 42),
+            ("likes", "page_actions_post_reactions_like_total", "点赞数", 46),
         ):
-            raw, metric_error = self._safe_insight(
+            raw, metric_error = read_insight(
                 page_id,
                 metric,
+                label=f"Facebook {label}",
+                progress_start=progress_start,
+                progress_end=progress_start + 4,
                 token=token,
                 since=report_start,
                 until=until,
@@ -898,20 +1000,12 @@ class MetaGraphClient:
             elif metric_error:
                 warnings.append(f"Facebook {key}：{metric_error}")
             if value is not None and paid_views in (None, 0):
-                daily_raw, daily_error = self._safe_insight(
-                    page_id,
-                    metric,
-                    token=token,
-                    since=report_start,
-                    until=until,
-                    metric_type=None,
-                )
                 _merge_monthly_metric(
-                    fb_monthly, key, _metric_monthly(daily_raw)
+                    fb_monthly, key, _metric_monthly(raw)
                 )
-                if daily_error:
+                if metric_error:
                     warnings.append(
-                        f"Facebook 月度{key}趋势未返回：{daily_error}"
+                        f"Facebook 月度{key}趋势未返回：{metric_error}"
                     )
 
         fb_values["monthly"] = fb_monthly
@@ -958,15 +1052,18 @@ class MetaGraphClient:
             )
             ig_values["posts"] = len(ig_media)
             progress(72, "正在读取 Instagram 概览指标")
-            for key, metric, additive in (
-                ("views", "views", True),
-                ("reach", "reach", False),
-                ("interactions", "total_interactions", True),
-                ("likes", "likes", True),
+            for key, metric, additive, label, progress_start in (
+                ("views", "views", True, "浏览量", 72),
+                ("reach", "reach", False, "覆盖人数", 76),
+                ("interactions", "total_interactions", True, "互动次数", 80),
+                ("likes", "likes", True, "点赞数", 84),
             ):
-                raw, metric_error = self._safe_insight(
+                raw, metric_error = read_insight(
                     instagram_id,
                     metric,
+                    label=f"Instagram {label}",
+                    progress_start=progress_start,
+                    progress_end=progress_start + 2,
                     token=token,
                     since=report_start,
                     until=until,
@@ -977,9 +1074,12 @@ class MetaGraphClient:
                 elif metric_error:
                     warnings.append(f"Instagram {key}：{metric_error}")
                 if additive or key == "reach":
-                    daily_raw, daily_error = self._safe_insight(
+                    daily_raw, daily_error = read_insight(
                         instagram_id,
                         metric,
+                        label=f"Instagram {label}日度趋势",
+                        progress_start=progress_start + 2,
+                        progress_end=progress_start + 4,
                         token=token,
                         since=report_start,
                         until=until,
@@ -1047,7 +1147,9 @@ class MetaGraphClient:
                     params={"metric": "post_media_view", "period": "lifetime"},
                 )
                 views = _metric_total(raw, additive=True) or 0
-            except MetaError:
+            except MetaError as exc:
+                if exc.reconnect or isinstance(exc, MetaSyncTimeout):
+                    raise
                 views = 0
             ranked.append((views, message))
         return max(ranked, default=(0, ""), key=lambda item: item[0])[1]
@@ -1067,7 +1169,9 @@ class MetaGraphClient:
                     params={"metric": "views", "period": "lifetime"},
                 )
                 views = _metric_total(raw, additive=True) or 0
-            except MetaError:
+            except MetaError as exc:
+                if exc.reconnect or isinstance(exc, MetaSyncTimeout):
+                    raise
                 views = int(item.get("like_count") or 0)
             ranked.append((views, caption))
         return max(ranked, default=(0, ""), key=lambda item: item[0])[1]

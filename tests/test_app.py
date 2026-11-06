@@ -26,7 +26,7 @@ os.environ["META_TOKEN_ENCRYPTION_KEY"] = (
 from fastapi.testclient import TestClient  # noqa: E402
 
 from webapp import app as app_module  # noqa: E402
-from webapp.meta import MetaError  # noqa: E402
+from webapp.meta import MetaError, MetaSyncTimeout  # noqa: E402
 
 
 class MetaApiTests(unittest.TestCase):
@@ -224,6 +224,12 @@ class MetaApiTests(unittest.TestCase):
         }
 
         def fake_sync(*_args, progress_callback=None, **_kwargs):
+            segment_message = "正在读取 Facebook 浏览量（第 2/12 段）"
+            progress_callback(32, segment_message)
+            running = app_module._get_meta_sync_job(sync_job_id)
+            self.assertEqual(running["progress"], 32)
+            self.assertEqual(running["message"], segment_message)
+            self.assertNotIn("result", running)
             progress_callback(60, "正在读取 Instagram 内容")
             return result
 
@@ -300,6 +306,59 @@ class MetaApiTests(unittest.TestCase):
         self.assertEqual(payload["error_code"], 190)
         self.assertTrue(payload["reconnect"])
         self.assertIn("访问令牌已过期", payload["error"])
+
+    def test_timed_out_meta_job_has_no_snapshot_and_can_be_submitted_again(self):
+        sync_job_id = "metaworkertimeout"
+        asset = {
+            "page_id": "page-timeout",
+            "page_name": "Timeout Page",
+            "page_token": "synthetic",
+            "instagram_id": None,
+        }
+        with app_module._db() as conn:
+            conn.execute(
+                """
+                INSERT OR REPLACE INTO meta_sync_jobs(
+                    id,page_id,report_start,report_end,status,progress,message,created_at
+                ) VALUES(?,?,?,?,'running',30,'reading',?)
+                """,
+                (sync_job_id, asset["page_id"], "2026-07-01", "2026-07-31", app_module._now_cn()),
+            )
+            row = conn.execute(
+                "SELECT * FROM meta_sync_jobs WHERE id=?", (sync_job_id,)
+            ).fetchone()
+
+        with (
+            patch.object(app_module.META_REPOSITORY, "get_asset", return_value=asset),
+            patch.object(app_module.META_REPOSITORY, "save_sync") as save,
+            patch.object(app_module.META_CLIENT, "sync", side_effect=MetaSyncTimeout("总时限已到")),
+        ):
+            app_module._run_meta_sync_job(row)
+        save.assert_not_called()
+        response = self.client.get(f"/api/meta/sync/{sync_job_id}")
+        payload = response.json()
+        self.assertEqual(payload["status"], "failed")
+        self.assertEqual(payload["message"], "Meta 数据同步超时")
+        self.assertIn("总时限", payload["error"])
+        self.assertFalse(payload["detail"]["reconnect"])
+        self.assertIsNone(payload["sync_id"])
+        self.assertIsNotNone(payload["finished_at"])
+        self.assertNotIn("result", payload)
+
+        with (
+            patch.object(app_module, "_meta_status_payload", return_value={"connected": True}),
+            patch.object(app_module.META_REPOSITORY, "get_asset", return_value=asset),
+            patch.object(app_module._meta_sync_wake, "put"),
+        ):
+            retried = self.client.post("/api/meta/sync", json={
+                "page_id": asset["page_id"], "report_start": "2026-07-01",
+                "report_end": "2026-07-31",
+            })
+            self.assertEqual(retried.status_code, 202, retried.text)
+            self.assertNotEqual(retried.json()["id"], sync_job_id)
+            app_module._set_meta_sync_job(
+                retried.json()["id"], status="failed", finished_at=app_module._now_cn()
+            )
 
     def test_linkedin_personal_template_downloads_xlsx(self):
         response = self.client.get("/api/templates/linkedin-personal-top10.xlsx")

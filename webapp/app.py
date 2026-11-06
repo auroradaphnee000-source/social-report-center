@@ -22,7 +22,9 @@ from openpyxl.styles import Alignment, Font, PatternFill
 from pydantic import BaseModel
 
 from social_report import generate_report
-from webapp.meta import MetaError, MetaGraphClient, MetaRepository, MetaSettings
+from webapp.meta import (
+    MetaError, MetaGraphClient, MetaRepository, MetaSettings, MetaSyncTimeout,
+)
 from webapp.popo import PopoDeliveryError, PopoSettings, deliver_job
 from webapp.popo_auth import (
     PopoAuthError,
@@ -280,7 +282,11 @@ def _run_meta_sync_job(row):
         _set_meta_sync_job(
             sync_job_id,
             status="failed",
-            message="Meta 数据同步失败",
+            message=(
+                "Meta 数据同步超时"
+                if isinstance(exc, MetaSyncTimeout)
+                else "Meta 数据同步失败"
+            ),
             error=_clean_text(str(exc), 800),
             error_code=exc.code,
             reconnect=1 if exc.reconnect else 0,
@@ -597,7 +603,7 @@ async def _save_upload(
     return filename
 
 
-app = FastAPI(title="Social Report Center", version="1.5.6")
+app = FastAPI(title="Social Report Center", version="1.5.7")
 
 
 @app.on_event("startup")

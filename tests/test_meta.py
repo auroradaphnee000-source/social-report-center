@@ -5,12 +5,14 @@ import unittest
 from datetime import date
 from pathlib import Path
 from urllib.parse import parse_qs, urlparse
+from unittest.mock import patch
 
 from webapp.meta import (
     MetaError,
     MetaGraphClient,
     MetaRepository,
     MetaSettings,
+    MetaSyncTimeout,
     _breakdown_total,
     _metric_monthly,
     _metric_total,
@@ -292,6 +294,7 @@ class FakeMetaClient(MetaGraphClient):
         period="day",
         breakdown=None,
         metric_type="total_value",
+        progress_callback=None,
     ):
         if breakdown == "is_from_ads":
             return (
@@ -356,7 +359,178 @@ class FakeMetaClient(MetaGraphClient):
         return "Ingredient application demo"
 
 
+class WindowedSyncClient(FakeMetaClient):
+    """Real windowing/aggregation with deterministic, network-free responses."""
+
+    _safe_insight = MetaGraphClient._safe_insight
+
+    def __init__(self, **kwargs):
+        super().__init__(settings(), **kwargs)
+        self.insight_calls = []
+
+    def _insight(self, object_id, metric, **kwargs):
+        self.insight_calls.append(
+            (object_id, metric, tuple(sorted(kwargs.items())))
+        )
+        payload, _ = FakeMetaClient._safe_insight(
+            self, object_id, metric, **kwargs
+        )
+        return payload
+
+
 class SyncTests(unittest.TestCase):
+    @staticmethod
+    def run_sync(client, **kwargs):
+        options = {
+            "instagram_id": "ig",
+            "report_start": "2025-11-25",
+            "report_end": "2026-11-04",
+        }
+        options.update(kwargs)
+        return client.sync(
+            {
+                "page_id": "page",
+                "page_name": "Example Page",
+                "page_token": "synthetic",
+                "instagram_id": "ig",
+            },
+            **options,
+        )
+
+    def test_annual_sync_reuses_facebook_responses_with_unchanged_metrics(self):
+        client = WindowedSyncClient()
+        result = self.run_sync(client)
+        fb_calls = [c for c in client.insight_calls if c[0] == "page"]
+        self.assertEqual(len(fb_calls), 60)
+        self.assertEqual(len(set(fb_calls)), 60)
+        self.assertEqual(len(client.insight_calls), 156)
+        self.assertEqual(result["facebook"]["views"], 240)
+        self.assertEqual(result["facebook"]["interactions"], 48)
+        self.assertEqual(result["facebook"]["monthly"][8]["month"], "2026-07")
+        self.assertEqual(result["facebook"]["monthly"][8]["views"], 240)
+        self.assertEqual(result["facebook"]["monthly"][8]["daily_reach_sum"], 144)
+        self.assertIsNone(result["facebook"]["viewers"])
+        # Distinct IG total_value and daily requests must not be conflated.
+        self.assertEqual(result["instagram"]["views"], 360)
+        self.assertEqual(result["instagram"]["monthly"][8]["views"], 360)
+        self.assertIsNone(result["instagram"]["reach"])
+
+        first_run_count = len(client.insight_calls)
+        self.run_sync(client)
+        self.assertEqual(len(client.insight_calls), first_run_count * 2)
+
+    def test_progress_changes_within_each_platform_and_covers_date_windows(self):
+        client = WindowedSyncClient()
+        events = []
+        self.run_sync(client, progress_callback=lambda *event: events.append(event))
+        values = [value for value, _ in events]
+        self.assertEqual(values, sorted(values))
+        self.assertTrue(any(30 < value < 50 for value in values))
+        self.assertTrue(any(72 < value < 88 for value in values))
+        for platform in ("Facebook", "Instagram"):
+            self.assertTrue(any(
+                platform in message and "第 1/12 段" in message
+                and "2025-11-25—2025-12-24" in message
+                for _, message in events
+            ))
+            self.assertTrue(any(
+                platform in message and "第 12/12 段" in message
+                and "2026-10-21—2026-11-04" in message
+                and "已读取" in message
+                for _, message in events
+            ))
+
+    def test_failed_windows_remain_missing_and_progress_continues(self):
+        client = WindowedSyncClient()
+        original = client._insight
+
+        def fail_views(object_id, metric, **kwargs):
+            if object_id == "page" and metric == "page_media_view":
+                raise MetaError("unavailable metric", code=100)
+            return original(object_id, metric, **kwargs)
+
+        events = []
+        with patch.object(client, "_insight", side_effect=fail_views):
+            result = self.run_sync(client, progress_callback=lambda *e: events.append(e))
+        self.assertIsNone(result["facebook"]["views"])
+        self.assertIsNone(result["facebook"]["monthly"][8]["views"])
+        self.assertIn("facebook.views", result["missing_metrics"])
+        self.assertTrue(any("未取得" in message for _, message in events))
+        self.assertEqual(events[-1][0], 92)
+
+    def test_deadline_stops_mid_metric_and_next_sync_has_a_fresh_budget(self):
+        client = WindowedSyncClient(sync_timeout=10)
+        clock = [0.0]
+        original = client._insight
+
+        def slow_insight(*args, **kwargs):
+            payload = original(*args, **kwargs)
+            clock[0] += 6
+            return payload
+
+        with patch("webapp.meta.time.monotonic", side_effect=lambda: clock[0]):
+            with patch.object(client, "_insight", side_effect=slow_insight):
+                with self.assertRaises(MetaSyncTimeout):
+                    self.run_sync(client)
+            self.assertEqual(len(client.insight_calls), 2)
+            result = self.run_sync(client)
+        self.assertIn("facebook", result)
+
+    def test_http_wait_is_limited_to_remaining_budget_and_late_result_rejected(self):
+        client = MetaGraphClient(settings(), sync_timeout=2)
+        clock = [0.0]
+
+        def read_payload(*_args):
+            clock[0] = 3
+            return b"{}"
+
+        with (
+            patch("webapp.meta.time.monotonic", side_effect=lambda: clock[0]),
+            patch("webapp.meta.urllib.request.urlopen") as open_request,
+        ):
+            open_request.return_value.__enter__.return_value.read.side_effect = read_payload
+            with patch.object(
+                client, "_sync",
+                side_effect=lambda *a, **k: client._request_json("https://graph.facebook.com/test"),
+            ):
+                with self.assertRaises(MetaSyncTimeout):
+                    self.run_sync(client)
+            self.assertEqual(open_request.call_args.kwargs["timeout"], 2)
+            # The failed run must not shorten a later non-sync/OAuth request.
+            self.assertEqual(client._request_json("https://graph.facebook.com/test"), {})
+            self.assertEqual(open_request.call_args.kwargs["timeout"], 35)
+
+    def test_timeout_escapes_breakdown_and_content_fallbacks(self):
+        client = MetaGraphClient(settings())
+        actions = (
+            lambda: client._insight(
+                "page", "views", token="synthetic", since="2026-07-01",
+                until="2026-07-02", breakdown="is_from_ads",
+            ),
+            lambda: client._safe_insight(
+                "page", "views", token="synthetic", since="2026-07-01",
+                until="2026-09-01",
+            ),
+            lambda: client._facebook_highlight(
+                [{"id": "post", "message": "Example"}], "synthetic"
+            ),
+            lambda: client._instagram_highlight(
+                [{"id": "media", "caption": "Example"}], "synthetic"
+            ),
+        )
+        for action in actions:
+            with self.subTest(action=action), patch.object(
+                client, "_graph", side_effect=MetaSyncTimeout("deadline exceeded")
+            ) as graph:
+                with self.assertRaises(MetaSyncTimeout):
+                    action()
+                self.assertEqual(graph.call_count, 1)
+
+    def test_sync_timeout_configuration_rejects_unbounded_values(self):
+        for value in (0, -1, float("inf"), float("nan")):
+            with self.subTest(value=value), self.assertRaises(ValueError):
+                MetaGraphClient(settings(), sync_timeout=value)
+
     def test_sync_returns_complete_server_side_snapshot(self):
         client = FakeMetaClient(settings())
         result = client.sync(

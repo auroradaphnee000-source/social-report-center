@@ -1,6 +1,6 @@
 {
-  "version": "1.5.6",
-  "provenance": "reconstructed pre-optimization local baseline; not a production export",
+  "version": "1.5.7",
+  "provenance": "local tested 1.5.7; not yet deployed",
   "files": [
     {
       "path": "webapp/__init__.py",
@@ -9,13 +9,13 @@
     },
     {
       "path": "webapp/app.py",
-      "before_public_adjustments_sha256": "56769f221b7d483612852151abcd7c08e09edf92fae3e2c53abcdd219226b802",
-      "sha256": "56769f221b7d483612852151abcd7c08e09edf92fae3e2c53abcdd219226b802"
+      "before_public_adjustments_sha256": "c867a7dc83f53f4481c55eec8f5b3601347efc6729eb508e9413f110eaea988e",
+      "sha256": "c867a7dc83f53f4481c55eec8f5b3601347efc6729eb508e9413f110eaea988e"
     },
     {
       "path": "webapp/meta.py",
-      "before_public_adjustments_sha256": "863c57f43e73e9925a43cb1d6d70a86fe39912cb445ee67b79b4d5652346d8fb",
-      "sha256": "0cdc38391cc1d7b19dec73378a0c1c2fe2047dba0fa6c09f8cfba61c2583ca55"
+      "before_public_adjustments_sha256": "90ceeb99aabcd87957ff91cefafc0b82977f4748ce4ad0a23334250b63a56fdd",
+      "sha256": "736800c8ce3639e15e9a104aea72a875aeced92c6bf70bdc95e43b1e0c7035fc"
     },
     {
       "path": "webapp/popo.py",
@@ -54,8 +54,8 @@
     },
     {
       "path": "tests/test_app.py",
-      "before_public_adjustments_sha256": "274fb78ad98b4d17527946d2b93814bf6537c250ab7afeed9bcc7ae79ca7036f",
-      "sha256": "c2d62432ac4b0ca375487c7ff19a5af574366933551870079cfe0ede07429096"
+      "before_public_adjustments_sha256": "dbc099c1c544b3a124a6555cc0b70ada68cb950abb862b10a45473278203e1e7",
+      "sha256": "87f808df252e7fd887d1b75092978ebccbbf472919d3d8a1f806ba2a7992e3b2"
     },
     {
       "path": "tests/test_linkedin_modes.py",
@@ -69,8 +69,8 @@
     },
     {
       "path": "tests/test_meta.py",
-      "before_public_adjustments_sha256": "006ccdc83290646f652e7a669e84c9c7c58fc9d1e0f55baff655a5b99b9b1515",
-      "sha256": "006ccdc83290646f652e7a669e84c9c7c58fc9d1e0f55baff655a5b99b9b1515"
+      "before_public_adjustments_sha256": "0758d6f51b3365bb78c55a9f86192a10c1107ff6e371ad8a9571213306f018d9",
+      "sha256": "0758d6f51b3365bb78c55a9f86192a10c1107ff6e371ad8a9571213306f018d9"
     },
     {
       "path": "tests/test_popo.py",
