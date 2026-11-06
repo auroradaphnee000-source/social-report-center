@@ -1,0 +1,561 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width,initial-scale=1">
+  <title>Social Report Center</title>
+  <style>
+    :root{
+      --navy:#123a63;--blue:#1e73be;--blue2:#125b9a;--soft:#eef6fb;--ink:#243447;
+      --muted:#687887;--line:#d7e2eb;--white:#fff;--green:#23835f;--red:#b84b3d;
+      --shadow:0 12px 35px rgba(18,58,99,.09)
+    }
+    *{box-sizing:border-box}
+    body{margin:0;background:#f3f7fa;color:var(--ink);font:14px/1.55 "Microsoft YaHei","PingFang SC",Arial,sans-serif}
+    header{background:linear-gradient(125deg,#0e3156,#176aa8);color:#fff;padding:26px 24px 30px}
+    .head{max-width:1180px;margin:auto;display:flex;gap:24px;align-items:flex-end;justify-content:space-between}
+    h1{margin:0;font-size:28px;letter-spacing:.2px}.tagline{margin:5px 0 0;color:#d6e8f4}
+    .who{min-width:300px}.who label{display:block;color:#cce0ee;font-size:12px;margin-bottom:5px}
+    .who input{width:100%;border:1px solid rgba(255,255,255,.26);border-radius:9px;background:rgba(255,255,255,.1);color:#fff;padding:10px 12px;font:inherit}
+    .who input::placeholder{color:#aac7d8}
+    main{max-width:1180px;margin:-16px auto 50px;padding:0 22px}
+    .card{background:var(--white);border:1px solid var(--line);border-radius:14px;box-shadow:var(--shadow);padding:22px;margin-bottom:18px}
+    .card h2{margin:0 0 5px;font-size:20px;color:var(--navy)}.hint{color:var(--muted);margin:0 0 17px}
+    .integration-card{display:flex;align-items:center;gap:16px;padding:15px 18px}.integration-card h2{font-size:16px;margin:0}.integration-copy{min-width:0;flex:1}.integration-copy p{margin:2px 0 0;color:var(--muted)}
+    .integration-state{font-size:12px;border-radius:999px;padding:5px 10px;background:#edf2f6;color:#536575;white-space:nowrap}.integration-state.ok{background:#e4f5ed;color:#18734f}.integration-state.warn{background:#fff3d8;color:#8b6617}.integration-state.error{background:#fde8e4;color:var(--red)}
+    .integration-actions{display:flex;gap:8px;align-items:center}.integration-actions a{text-decoration:none;color:var(--blue);font-size:12px;white-space:nowrap}
+    .grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:15px}.grid.three{grid-template-columns:repeat(3,minmax(0,1fr))}
+    label.field{display:block;font-weight:650;color:#33495d}
+    label.field span{display:block;font-size:12px;font-weight:400;color:var(--muted);margin-top:2px}
+    input,select,textarea{width:100%;margin-top:6px;padding:10px 11px;border:1px solid #cbd9e4;border-radius:9px;background:#fff;color:var(--ink);font:inherit}
+    input:focus,select:focus,textarea:focus{outline:2px solid #a9cce5;border-color:var(--blue)}textarea{min-height:76px;resize:vertical}
+    fieldset{border:1px solid var(--line);border-radius:12px;margin:18px 0 0;padding:17px}
+    legend{padding:0 8px;color:var(--navy);font-weight:700}.metric-grid{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:11px}
+    .meta-panel{border:1px solid #b8d2e5;border-radius:13px;margin-top:18px;padding:17px;background:linear-gradient(180deg,#f8fcff,#fff)}
+    .meta-panel-head{display:flex;gap:14px;align-items:flex-start}.meta-panel-head h3{margin:0;color:var(--navy);font-size:17px}
+    .meta-panel-head p{margin:3px 0 0;color:var(--muted)}.meta-actions{margin-left:auto;display:flex;gap:8px;flex-wrap:wrap}
+    .meta-actions a{text-decoration:none;display:inline-flex;align-items:center;border-radius:9px;padding:10px 14px;font-weight:650}.status-line{margin-top:13px;border-radius:9px;padding:10px 12px;background:#eef4f8;color:#496174}
+    .status-line.ok{background:#e6f5ee;color:#1d7553}.status-line.warn{background:#fff4dc;color:#8a6518}.status-line.error{background:#fdebe7;color:#a13d31}
+    .asset-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:13px;margin-top:14px}
+    .sync-row{display:flex;align-items:center;gap:12px;margin-top:14px}.sync-row .hint{margin:0}
+    .sync-progress{margin-top:12px;padding:11px 12px;border:1px solid #c8dce9;border-radius:9px;background:#f7fbfe}
+    .sync-progress-head{display:flex;justify-content:space-between;gap:12px;color:#496174;font-size:12px}
+    .sync-progress-track{height:7px;margin-top:8px;border-radius:999px;background:#dbe8f1;overflow:hidden}
+    .sync-progress-bar{display:block;height:100%;width:0;background:linear-gradient(90deg,#1e73be,#36a384);transition:width .35s ease}
+    .preview-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:14px}
+    .preview-card{border:1px solid var(--line);border-radius:11px;padding:13px;background:#fff}.preview-card h4{margin:0 0 9px;color:var(--navy)}
+    .preview-metrics{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:8px}
+    .preview-metric{background:#f4f8fb;border-radius:8px;padding:8px}.preview-metric span{display:block;color:var(--muted);font-size:11px}.preview-metric strong{display:block;color:var(--navy);font-size:16px}
+    .manual-fallback{border:1px solid #e4c98f;border-radius:12px;margin-top:14px;background:#fffbf2}
+    .manual-fallback summary{cursor:pointer;padding:13px 16px;color:#765518;font-weight:700}.manual-body{border-top:1px solid #ecd9ad;padding:14px 16px}
+    .manual-body .hint{margin:0 0 12px}.manual-platform{margin-top:13px}.manual-platform h4{margin:0 0 8px;color:var(--navy)}
+    .missing-list{margin:9px 0 0;color:#8a6518}.hidden{display:none!important}
+    .upload-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px;margin-top:16px}
+    .upload{border:1px dashed #9eb9cd;border-radius:11px;padding:13px;background:#f9fcfe}.upload b{display:block;color:var(--navy)}
+    .upload small{display:block;color:var(--muted);min-height:38px}.upload input{border:0;padding:7px 0 0;background:transparent;font-size:12px}
+    .linkedin{display:grid;grid-template-columns:repeat(3,minmax(0,1fr));gap:12px}
+    .linkedin-panel{border:1px solid #b8d2e5;border-radius:13px;margin-top:16px;padding:17px;background:#fff}
+    .linkedin-panel h3{margin:0;color:var(--navy);font-size:17px}.linkedin-panel>.hint{margin:4px 0 12px}
+    .linkedin-mode-body{margin-top:14px}.linkedin-personal-grid{display:grid;grid-template-columns:repeat(2,minmax(0,1fr));gap:12px}
+    .template-link{display:inline-flex;margin:0 0 12px;color:var(--blue);font-weight:650;text-decoration:none}
+    .note{margin-top:16px;padding:11px 13px;background:var(--soft);border-left:4px solid var(--blue);border-radius:8px;color:#31536d}
+    .actions{display:flex;align-items:center;justify-content:flex-end;gap:12px;margin-top:18px}
+    button{border:0;border-radius:9px;background:var(--blue);color:#fff;padding:11px 18px;font:650 14px/1 "Microsoft YaHei",sans-serif;cursor:pointer}
+    button:hover{background:var(--blue2)}button:disabled{opacity:.5;cursor:wait}.ghost{background:#fff;color:var(--blue);border:1px solid #a9c5da}.ghost.busy{opacity:.6;pointer-events:none;cursor:wait}
+    .status{margin-right:auto;color:var(--muted)}.section-title{display:flex;align-items:center;justify-content:space-between;margin-bottom:13px}
+    .jobs{display:grid;gap:11px}.job{border:1px solid var(--line);border-radius:11px;padding:14px;background:#fff}
+    .job-head{display:flex;align-items:center;gap:9px;flex-wrap:wrap}.job-head strong{color:var(--navy)}
+    .badge{border-radius:999px;padding:3px 9px;font-size:12px;background:#edf2f6;color:#536575}
+    .badge.running,.badge.queued{background:#fff3d8;color:#8b6617}.badge.succeeded{background:#e4f5ed;color:#18734f}.badge.failed{background:#fde8e4;color:var(--red)}
+    .meta{color:var(--muted);font-size:12px}.spacer{flex:1}.error{margin-top:8px;color:var(--red)}
+    .popo-badge{border-radius:999px;padding:3px 9px;font-size:12px;background:#edf2f6;color:#536575}.popo-badge.wait{background:#fff3d8;color:#8b6617}.popo-badge.done{background:#e4f5ed;color:#18734f;text-decoration:none}.popo-badge.fail{background:#fde8e4;color:var(--red)}
+    .popo-error{margin-top:8px;color:var(--red);font-size:12px;background:#fff3f1;border-radius:8px;padding:7px 9px}
+    .files{display:flex;gap:8px;flex-wrap:wrap;margin-top:10px}.files a,.log,.popo-retry{display:inline-block;text-decoration:none;border:1px solid #9ebbd1;border-radius:8px;padding:6px 10px;color:var(--blue);background:#fff;font-size:12px;cursor:pointer}.popo-retry{color:var(--red);border-color:#e3aaa2}
+    dialog{border:0;border-radius:13px;padding:0;max-width:760px;width:calc(100% - 40px);box-shadow:0 25px 70px rgba(0,0,0,.25)}
+    dialog::backdrop{background:rgba(18,39,57,.45)}.dlg-head{display:flex;align-items:center;padding:14px 17px;border-bottom:1px solid var(--line)}
+    .dlg-head h3{margin:0}.dlg-body{padding:15px;max-height:65vh;overflow:auto}.dlg-body pre{white-space:pre-wrap;word-break:break-word;font:12px/1.55 Consolas,monospace}
+    @media(max-width:780px){.head{display:block}.who{margin-top:16px;min-width:0}.grid,.grid.three,.metric-grid,.upload-grid,.linkedin,.linkedin-personal-grid,.asset-grid,.preview-grid{grid-template-columns:1fr}.card{padding:17px}.meta-panel-head{display:block}.meta-actions{margin:12px 0 0}.preview-metrics{grid-template-columns:repeat(2,minmax(0,1fr))}.integration-card{align-items:flex-start;flex-wrap:wrap}.integration-actions{width:100%;justify-content:flex-end}}
+  </style>
+</head>
+<body>
+<header>
+  <div class="head">
+    <div><h1>Social Report Center</h1><p class="tagline">Facebook · Instagram · LinkedIn 自然流量周期报告生成</p></div>
+    <div class="who"><label for="createdBy">你是谁（会记录在任务上）</label><input id="createdBy" placeholder="姓名或邮箱前缀"></div>
+  </div>
+</header>
+<main>
+  <section class="card integration-card">
+    <div class="integration-copy">
+      <h2>POPO 云空间交付</h2>
+      <p>报告生成成功后，服务器会自动新建完整的 POPO 原生文档，并附上最终 Word。</p>
+    </div>
+    <span class="integration-state" id="popoState">正在检查…</span>
+    <div class="integration-actions">
+      <a id="popoFolder" href="#" target="_blank" rel="noopener">打开报告文件夹</a>
+      <a class="ghost hidden" id="popoAuthLink" target="_blank" rel="noopener">打开 POPO 授权页</a>
+      <button class="ghost" id="popoConnect" type="button">连接 POPO</button>
+    </div>
+  </section>
+  <form id="reportForm" class="card">
+    <h2>新建社媒运营报告</h2>
+    <p class="hint">连接 Meta 后选择账号和报告日期，系统会自动读取概览数据；上传两张内容排行截图，并按实际情况选择 LinkedIn 公共主页、个人账号或本期无数据，即可生成 Word 并交付 POPO 原生报告。</p>
+
+    <div class="grid three">
+      <label class="field">客户 / 品牌名称<input name="brand" required placeholder="例如：Leesmum"></label>
+      <label class="field">账号标识<span>可填主页名或公司全称</span><input name="account_label" placeholder="例如：Lee's mum"></label>
+      <label class="field">报告类型<select name="report_type" required>
+        <option value="monthly">月报</option>
+        <option value="quarterly">季度报</option>
+        <option value="annual">年报</option>
+        <option value="custom">自定义报告</option>
+      </select></label>
+      <label class="field">报告开始日期<input type="date" name="report_start" required></label>
+      <label class="field">报告结束日期<input type="date" name="report_end" required></label>
+    </div>
+
+    <section class="meta-panel" id="metaPanel">
+      <div class="meta-panel-head">
+        <div>
+          <h3>Meta 自动取数</h3>
+          <p>在 Meta 官方页面授权一次，之后可按账号和报告日期同步 Facebook / Instagram 概览。</p>
+        </div>
+        <div class="meta-actions">
+          <a class="ghost" id="metaConnect" href="/api/meta/connect">连接 Meta</a>
+          <button class="ghost hidden" id="metaRefresh" type="button">刷新账号</button>
+          <button class="ghost hidden" id="metaDisconnect" type="button">断开连接</button>
+        </div>
+      </div>
+      <div class="status-line" id="metaStatus">正在检查 Meta 连接状态…</div>
+      <div id="metaAssets" class="hidden">
+        <div class="asset-grid">
+          <label class="field">Facebook 页面<select id="metaPage"><option value="">请选择页面</option></select></label>
+          <label class="field">关联 Instagram 账号<select id="metaInstagram"><option value="">未关联或不选择</option></select></label>
+        </div>
+        <div class="sync-row">
+          <button type="button" id="metaSync">同步所选日期数据</button>
+          <p class="hint" id="metaSyncHint">选择账号后同步；更改报告日期需要重新同步。</p>
+        </div>
+        <div class="sync-progress hidden" id="metaSyncProgress" aria-live="polite">
+          <div class="sync-progress-head"><span id="metaSyncStage">等待开始</span><strong id="metaSyncPercent">0%</strong></div>
+          <div class="sync-progress-track"><span class="sync-progress-bar" id="metaSyncBar"></span></div>
+        </div>
+      </div>
+      <div class="preview-grid hidden" id="metaPreview">
+        <article class="preview-card"><h4>Facebook 概览（API）</h4><div class="preview-metrics" id="facebookPreview"></div></article>
+        <article class="preview-card"><h4>Instagram 概览（API）</h4><div class="preview-metrics" id="instagramPreview"></div></article>
+      </div>
+      <div class="missing-list hidden" id="metaWarnings"></div>
+    </section>
+
+    <input type="hidden" name="meta_sync_id" value="">
+    <input type="hidden" name="manual_override" value="">
+    <details class="manual-fallback" id="manualFallback" hidden>
+      <summary id="manualSummary">手动补充 / 修正数据（非必填）</summary>
+      <div class="manual-body">
+        <p class="hint"><b>什么时候需要填：</b>仅当 Meta 尚未连接、授权过期，或 API 明确提示某项指标缺失时填写。无需把全部数字重填；只补缺失项即可。留空表示该指标未取得，系统不会把它猜成 0。</p>
+        <div class="manual-platform">
+          <h4>Facebook</h4>
+          <div class="metric-grid">
+            <label class="field">发布内容数<input type="number" min="0" name="facebook_posts" placeholder="API 缺失时填写"></label>
+            <label class="field">浏览量<input type="number" min="0" name="facebook_views" placeholder="API 缺失时填写"></label>
+            <label class="field">覆盖人数<input type="number" min="0" name="facebook_reach" placeholder="旧口径，可留空"></label>
+            <label class="field">浏览人数<input type="number" min="0" name="facebook_viewers" placeholder="API 缺失时填写"></label>
+            <label class="field">互动次数<input type="number" min="0" name="facebook_interactions" placeholder="API 缺失时填写"></label>
+            <label class="field">点赞数<input type="number" min="0" name="facebook_likes" placeholder="API 缺失时填写"></label>
+          </div>
+          <label class="field" style="margin-top:12px">高表现内容主题（可选修正）<span>API 未识别准确时，可写一句主题说明。</span><textarea name="facebook_highlight"></textarea></label>
+        </div>
+        <div class="manual-platform">
+          <h4>Instagram</h4>
+          <div class="metric-grid">
+            <label class="field">发布内容数<input type="number" min="0" name="instagram_posts" placeholder="API 缺失时填写"></label>
+            <label class="field">浏览量<input type="number" min="0" name="instagram_views" placeholder="API 缺失时填写"></label>
+            <label class="field">覆盖人数<input type="number" min="0" name="instagram_reach" placeholder="API 缺失时填写"></label>
+            <label class="field">互动次数<input type="number" min="0" name="instagram_interactions" placeholder="API 缺失时填写"></label>
+            <label class="field">点赞数<input type="number" min="0" name="instagram_likes" placeholder="API 缺失时填写"></label>
+          </div>
+          <label class="field" style="margin-top:12px">高表现内容主题（可选修正）<textarea name="instagram_highlight"></textarea></label>
+        </div>
+      </div>
+    </details>
+
+    <div class="upload-grid">
+      <label class="upload"><b>Facebook 内容排行截图</b><small>将原样放入报告 1.3，支持 PNG / JPG。</small><input type="file" name="facebook_screenshot" accept=".png,.jpg,.jpeg,image/png,image/jpeg" required></label>
+      <label class="upload"><b>Instagram 内容排行截图</b><small>将原样放入报告 2.3，支持 PNG / JPG。</small><input type="file" name="instagram_screenshot" accept=".png,.jpg,.jpeg,image/png,image/jpeg" required></label>
+    </div>
+
+    <section class="linkedin-panel">
+      <h3>LinkedIn 数据来源</h3>
+      <p class="hint">有公共主页时上传三份官方导出；个人账号上传人工筛选的 Top 10 汇总表或截图。</p>
+      <label class="field">本期 LinkedIn 数据类型<select name="linkedin_mode" id="linkedinMode" required>
+        <option value="company">公共主页——三份官方导出</option>
+        <option value="personal">个人账号——人工 Top 10 汇总/截图</option>
+        <option value="none">本期无 LinkedIn 数据</option>
+      </select></label>
+
+      <div class="linkedin-mode-body" id="linkedinCompany">
+        <div class="linkedin">
+        <label class="upload"><b>LinkedIn 内容</b><small>content 导出。</small><input type="file" name="linkedin_content" accept=".xls,.xlsx" required></label>
+        <label class="upload"><b>LinkedIn 关注者</b><small>followers 导出。</small><input type="file" name="linkedin_followers" accept=".xls,.xlsx" required></label>
+        <label class="upload"><b>LinkedIn 访客</b><small>visitors 导出。</small><input type="file" name="linkedin_visitors" accept=".xls,.xlsx" required></label>
+        </div>
+      </div>
+
+      <div class="linkedin-mode-body hidden" id="linkedinPersonal">
+        <a class="template-link" href="/api/templates/linkedin-personal-top10.xlsx">⬇ 下载个人账号 Top 10 汇总模板</a>
+        <div class="linkedin-personal-grid">
+          <label class="upload"><b>Top 10 汇总表（推荐）</b><small>支持平台模板或包含日期、内容摘要、浏览量/展示量的 XLS/XLSX。</small><input type="file" name="linkedin_personal_top10" accept=".xls,.xlsx"></label>
+          <label class="upload"><b>Top 10 截图</b><small>可上传一张或多张 PNG/JPG；仅有截图时系统不会猜测其中的数字。</small><input type="file" name="linkedin_personal_screenshots" accept=".png,.jpg,.jpeg,image/png,image/jpeg" multiple></label>
+        </div>
+        <div class="metric-grid" style="margin-top:12px">
+          <label class="field">报告期总浏览量<span>可选，仅在人工取得时填写</span><input type="number" min="0" name="linkedin_period_impressions"></label>
+          <label class="field">主页访问量<span>可选</span><input type="number" min="0" name="linkedin_profile_views"></label>
+          <label class="field">当前关注者<span>可选</span><input type="number" min="0" name="linkedin_current_followers"></label>
+        </div>
+        <label class="field" style="margin-top:12px">高表现主题或人工备注（可选）<textarea name="linkedin_highlight" placeholder="例如：工艺演示类内容浏览量最高，建议延续系列化发布。"></textarea></label>
+        <div class="note">汇总表和截图至少上传一种。Top 10 累计只代表人工筛选样本，不会被当作报告期账号全量。</div>
+      </div>
+
+      <div class="linkedin-mode-body hidden" id="linkedinNone">
+        <div class="note">报告会保留 LinkedIn 章节并注明“本期未提供数据”，不会把缺失指标记为 0。</div>
+      </div>
+    </section>
+
+    <div class="note">Meta 概览优先使用官方 API 自动同步；内容排行截图仍会原样插入 Word。只有 API 缺失或授权失效时，才需要使用上方的手动补充入口。</div>
+    <div class="actions"><span class="status" id="submitStatus"></span><button type="submit" id="submitBtn">生成报告</button></div>
+  </form>
+
+  <section class="card">
+    <div class="section-title"><div><h2>生成任务</h2><p class="hint" style="margin:2px 0 0">任务串行执行，避免多人同时生成时相互覆盖。</p></div><button class="ghost" id="refresh" type="button">刷新</button></div>
+    <div id="jobs" class="jobs"><div class="meta">正在读取任务…</div></div>
+  </section>
+</main>
+
+<dialog id="logDialog">
+  <div class="dlg-head"><h3>运行日志</h3><span class="spacer"></span><button class="ghost" id="closeLog">关闭</button></div>
+  <div class="dlg-body"><pre id="logText"></pre></div>
+</dialog>
+
+<script>
+const $=s=>document.querySelector(s);
+const esc=s=>String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
+const labels={queued:'排队中',running:'生成中',succeeded:'已完成',failed:'失败'};
+const meKey='social_report_created_by';
+const metaSyncJobKey='social_report_meta_sync_job_v1';
+let metaConnected=false;
+let metaAssets=[];
+let activeMetaSync=null;
+let activeMetaSyncJobId='';
+let metaSyncPollSerial=0;
+$('#createdBy').value=localStorage.getItem(meKey)||'';
+$('#createdBy').oninput=e=>localStorage.setItem(meKey,e.target.value.trim());
+const pad=n=>String(n).padStart(2,'0');
+const iso=d=>`${d.getFullYear()}-${pad(d.getMonth()+1)}-${pad(d.getDate())}`;
+const delay=ms=>new Promise(resolve=>setTimeout(resolve,ms));
+function setMetaSyncProgress(show,progress=0,message=''){
+  $('#metaSyncProgress').classList.toggle('hidden',!show);
+  const value=Math.max(0,Math.min(Number(progress)||0,100));
+  $('#metaSyncBar').style.width=`${value}%`;
+  $('#metaSyncPercent').textContent=`${value}%`;
+  if(message)$('#metaSyncStage').textContent=message
+}
+function clearMetaSync(message='报告日期或账号已变化，请重新同步 Meta 数据。'){
+  metaSyncPollSerial++;activeMetaSyncJobId='';localStorage.removeItem(metaSyncJobKey);
+  activeMetaSync=null;$('[name=meta_sync_id]').value='';
+  $('#metaPreview').classList.add('hidden');$('#metaWarnings').classList.add('hidden');
+  setMetaSyncProgress(false);
+  $('#metaSync').disabled=false;
+  if(metaConnected){setMetaStatus(message,'warn')}
+}
+function setSuggestedDates(type){
+  const days={monthly:27,quarterly:89,annual:364}[type];
+  if(days===undefined)return;
+  const end=new Date();end.setDate(end.getDate()-2);
+  const start=new Date(end);start.setDate(start.getDate()-days);
+  $('[name=report_end]').value=iso(end);$('[name=report_start]').value=iso(start);
+}
+setSuggestedDates($('[name=report_type]').value);
+$('[name=linkedin_mode]').onchange=updateLinkedInMode;
+function updateLinkedInMode(){
+  const mode=$('[name=linkedin_mode]').value;
+  $('#linkedinCompany').classList.toggle('hidden',mode!=='company');
+  $('#linkedinPersonal').classList.toggle('hidden',mode!=='personal');
+  $('#linkedinNone').classList.toggle('hidden',mode!=='none');
+  ['linkedin_content','linkedin_followers','linkedin_visitors'].forEach(name=>{
+    $(`[name=${name}]`).required=mode==='company'
+  })
+}
+updateLinkedInMode();
+$('[name=report_type]').onchange=e=>{setSuggestedDates(e.target.value);clearMetaSync()};
+$('[name=report_start]').onchange=()=>clearMetaSync();
+$('[name=report_end]').onchange=()=>clearMetaSync();
+
+async function api(url,opt){
+  const r=await fetch(url,opt);let j;try{j=await r.json()}catch{j={detail:'服务器返回异常'}}
+  if(!r.ok){const detail=j.detail;const msg=typeof detail==='string'?detail:(detail?.message||'请求失败');const err=new Error(msg);err.detail=detail;err.status=r.status;err.retryable=!!detail?.retryable;throw err}
+  return j
+}
+let popo={connected:false};
+function renderPopo(){
+  const state=$('#popoState'),button=$('#popoConnect'),authLink=$('#popoAuthLink');
+  if(popo.folder_url)$('#popoFolder').href=popo.folder_url;
+  if(popo.connected){state.textContent=`已连接${popo.account?` · ${popo.account}`:''}`;state.className='integration-state ok';button.textContent='已连接';button.disabled=true;authLink.classList.add('hidden');return}
+  button.disabled=false;button.textContent='连接 POPO';
+  if(!popo.configured){state.textContent='目标文件夹未配置';state.className='integration-state error';button.disabled=true}
+  else if(!popo.available){state.textContent='服务器组件不可用';state.className='integration-state error';button.disabled=true}
+  else{state.textContent=popo.message||'尚未连接';state.className='integration-state warn'}
+}
+async function loadPopoStatus(){
+  try{popo=await api('/api/integrations/popo/status');renderPopo()}
+  catch(err){popo={connected:false,available:true,configured:true,message:err.message};renderPopo()}
+}
+async function connectPopo(){
+  const button=$('#popoConnect');button.disabled=true;button.textContent='正在获取授权链接…';
+  const authLink=$('#popoAuthLink');let authWindow=null;
+  try{
+    const started=await api('/api/integrations/popo/login',{method:'POST'});
+    if(started.connected){popo=started.status||{connected:true,available:true,configured:true};renderPopo();return}
+    authLink.href=started.authorization_url;authLink.classList.remove('hidden');
+    authWindow=window.open(started.authorization_url,'_blank','noopener');
+    if(!authWindow){try{await navigator.clipboard.writeText(started.authorization_url)}catch(_e){}popo.message='请点击“打开 POPO 授权页”完成登录';popo.configured=true;popo.available=true}
+    button.textContent='等待 POPO 授权…';
+    for(let i=0;i<60;i++){
+      await new Promise(resolve=>setTimeout(resolve,3000));
+      try{
+        popo=await api('/api/integrations/popo/resume',{method:'POST'});
+        if(popo.connected){popo.configured=true;popo.available=true;renderPopo();alert('POPO 授权成功');return}
+      }catch(err){if(err.retryable)continue;throw err}
+    }
+    throw new Error('POPO 授权等待超时，请完成登录后再点一次连接')
+  }catch(err){alert(`POPO 连接失败：${err.message}`);await loadPopoStatus()}
+  finally{button.disabled=false;renderPopo()}
+}
+$('#popoConnect').onclick=connectPopo;
+function setMetaStatus(message,type=''){
+  const line=$('#metaStatus');line.textContent=message;line.className=`status-line ${type}`.trim()
+}
+function setManualVisible(show,summary='手动补充 / 修正数据（非必填）'){
+  const details=$('#manualFallback');details.hidden=!show;$('#manualSummary').textContent=summary;
+  if(!show)details.open=false
+}
+function fillManual(platform,metrics,highlight=''){
+  Object.entries(metrics||{}).forEach(([key,value])=>{
+    const input=$(`[name=${platform}_${key}]`);if(input)input.value=value??''
+  });
+  const area=$(`[name=${platform}_highlight]`);if(area&&highlight)area.value=highlight
+}
+const fbMetricLabels={posts:'发布内容',views:'浏览量',viewers:'浏览人数',reach:'覆盖人数',interactions:'互动',likes:'点赞'};
+const igMetricLabels={posts:'发布内容',views:'浏览量',reach:'覆盖人数',interactions:'互动',likes:'点赞'};
+function previewMetrics(target,metrics,labels){
+  target.innerHTML=Object.entries(labels).map(([key,label])=>`<div class="preview-metric"><span>${label}</span><strong>${metrics?.[key]??'—'}</strong></div>`).join('')
+}
+function currentMetaSyncDescriptor(){
+  return {
+    page_id:$('#metaPage').value,
+    instagram_id:$('#metaInstagram').value||null,
+    report_start:$('[name=report_start]').value,
+    report_end:$('[name=report_end]').value
+  }
+}
+function sameMetaSyncDescriptor(left,right){
+  return !!left&&!!right&&left.page_id===right.page_id&&
+    (left.instagram_id||null)===(right.instagram_id||null)&&
+    left.report_start===right.report_start&&left.report_end===right.report_end
+}
+function applyMetaSyncResult(result){
+  activeMetaSync=result;$('[name=meta_sync_id]').value=result.sync_id;$('[name=manual_override]').value='';
+  fillManual('facebook',result.facebook,result.facebook_highlight);fillManual('instagram',result.instagram,result.instagram_highlight);
+  previewMetrics($('#facebookPreview'),result.facebook,fbMetricLabels);previewMetrics($('#instagramPreview'),result.instagram,igMetricLabels);$('#metaPreview').classList.remove('hidden');
+  const warnings=[...(result.missing_labels?.length?[`缺失指标：${result.missing_labels.join('、')}`]:[]),...(result.warnings||[])];
+  if(warnings.length){$('#metaWarnings').innerHTML=warnings.map(x=>`<div>• ${esc(x)}</div>`).join('');$('#metaWarnings').classList.remove('hidden')}else $('#metaWarnings').classList.add('hidden');
+  if(result.complete){
+    setMetaStatus(`同步完成：${result.page.name}${result.instagram_account?.username?` / @${result.instagram_account.username}`:''}。报告将直接使用 API 数据。`,'ok');setManualVisible(false)
+  }else{
+    setMetaStatus('同步完成，但部分指标未由 API 返回。请只补充缺失项；其余数字无需重填。','warn');
+    setManualVisible(true,`手动补充 / 修正数据（缺失 ${result.missing_labels.length} 项，非必填）`)
+  }
+}
+async function pollMetaSync(syncJobId,descriptor){
+  const serial=++metaSyncPollSerial;activeMetaSyncJobId=syncJobId;$('#metaSync').disabled=true;
+  let readFailures=0;
+  while(serial===metaSyncPollSerial){
+    let job;
+    try{
+      job=await api(`/api/meta/sync/${encodeURIComponent(syncJobId)}`);readFailures=0
+    }catch(err){
+      readFailures++;
+      setMetaStatus(`后台同步仍在继续，进度查询暂时失败（第 ${readFailures} 次）：${err.message}`,'warn');
+      if(readFailures>=5){$('#metaSync').disabled=false;return}
+      await delay(3000);continue
+    }
+    const progress=Number(job.progress)||0;
+    setMetaSyncProgress(true,progress,job.message||labels[job.status]||'后台同步中');
+    if(job.status==='queued'){
+      setMetaStatus(`Meta 同步任务已进入后台队列 · ${progress}%`,'warn')
+    }else if(job.status==='running'){
+      setMetaStatus(`${job.message||'后台正在读取 Meta 数据'} · ${progress}%`)
+    }else if(job.status==='failed'){
+      const detail=job.detail||{};const message=detail.message||job.error||'Meta 数据同步失败';
+      activeMetaSyncJobId='';localStorage.removeItem(metaSyncJobKey);$('#metaSync').disabled=false;
+      setMetaStatus(message,'error');setMetaSyncProgress(true,progress,job.message||'同步失败');
+      const expired=!!detail.reconnect;setManualVisible(true,expired?'手动补充 / 修正数据（授权失效，非必填）':'手动补充 / 修正数据（同步失败，非必填）');
+      if(expired){metaConnected=false;$('#metaConnect').classList.remove('hidden');$('#metaConnect').textContent='重新连接 Meta'}
+      return
+    }else if(job.status==='succeeded'){
+      activeMetaSyncJobId='';localStorage.removeItem(metaSyncJobKey);$('#metaSync').disabled=false;
+      setMetaSyncProgress(true,100,'Meta 数据同步完成');
+      if(!sameMetaSyncDescriptor(descriptor,currentMetaSyncDescriptor())){
+        setMetaStatus('后台同步已完成，但账号或报告日期已经变化；请按当前条件重新同步。','warn');return
+      }
+      applyMetaSyncResult(job.result);return
+    }
+    await delay(2500)
+  }
+}
+function resumeStoredMetaSync(){
+  if(activeMetaSyncJobId)return;
+  let stored;
+  try{stored=JSON.parse(localStorage.getItem(metaSyncJobKey)||'null')}catch(_err){localStorage.removeItem(metaSyncJobKey);return}
+  if(!stored?.id||!stored.page_id)return;
+  if(!metaAssets.some(asset=>asset.page_id===stored.page_id)){localStorage.removeItem(metaSyncJobKey);return}
+  $('#metaPage').value=stored.page_id;updateInstagramOptions();
+  if(stored.instagram_id&&$('#metaInstagram').querySelector(`option[value="${CSS.escape(stored.instagram_id)}"]`))$('#metaInstagram').value=stored.instagram_id;
+  $('[name=report_start]').value=stored.report_start;$('[name=report_end]').value=stored.report_end;
+  const descriptor={page_id:stored.page_id,instagram_id:stored.instagram_id||null,report_start:stored.report_start,report_end:stored.report_end};
+  setMetaStatus('正在恢复后台 Meta 同步进度…','warn');void pollMetaSync(stored.id,descriptor)
+}
+function setAssets(items){
+  metaAssets=items||[];const page=$('#metaPage');const current=page.value;
+  page.innerHTML='<option value="">请选择页面</option>'+metaAssets.map(a=>`<option value="${esc(a.page_id)}">${esc(a.page_name)}</option>`).join('');
+  if(metaAssets.some(a=>a.page_id===current))page.value=current;
+  updateInstagramOptions()
+}
+function updateInstagramOptions(){
+  const pageId=$('#metaPage').value;const selected=metaAssets.find(a=>a.page_id===pageId);const ig=$('#metaInstagram');
+  if(selected?.instagram_id){
+    ig.innerHTML=`<option value="${esc(selected.instagram_id)}">@${esc(selected.instagram_username||selected.instagram_id)}</option>`;
+    ig.value=selected.instagram_id
+  }else{
+    ig.innerHTML='<option value="">该页面未关联 Instagram 专业账号</option>';ig.value=''
+  }
+  if(selected&&$('[name=account_label]').value.trim()==='')$('[name=account_label]').value=selected.page_name
+}
+$('#metaPage').onchange=()=>{updateInstagramOptions();clearMetaSync('已更换账号，请同步所选日期的数据。')};
+$('#metaInstagram').onchange=()=>clearMetaSync('已更换 Instagram 账号，请重新同步。');
+const metaParams=new URLSearchParams(location.search);
+const metaQuery=metaParams.get('meta');
+const metaReason=metaParams.get('reason')||'';
+const metaCallbackMessages={
+  meta_network:'服务器连接 Meta 超时，授权结果尚未保存。请稍后重新连接；手动上传仍可继续生成报告。',
+  asset_read_failed:'Meta 授权已返回，但服务器读取主页列表失败。请重新连接或稍后重试。',
+  reconnect:'Meta 授权已失效，请重新连接 Xuan Dong 账号。',
+  invalid_state:'Meta 授权校验已过期，请从本页面重新点击“连接 Meta”。',
+  authorization_cancelled:'Meta 授权未完成，请重新连接。',
+  api_error:'Meta 授权结果处理失败，请稍后重新连接。'
+};
+const metaCallbackMessage=metaQuery==='error'?(metaCallbackMessages[metaReason]||'Meta 授权未完成，请重新连接或使用手动补充入口。'):'';
+async function loadMetaStatus(refresh=false){
+  try{
+    const status=await api('/api/meta/status');metaConnected=!!status.connected;
+    if(!status.configured){
+      setMetaStatus(status.message,'warn');$('#metaConnect').classList.add('hidden');$('#metaAssets').classList.add('hidden');
+      $('#metaRefresh').classList.add('hidden');$('#metaDisconnect').classList.add('hidden');
+      setManualVisible(true,'手动补充 / 修正数据（Meta 尚未配置，非必填）');return
+    }
+    if(!status.connected){
+      if(metaCallbackMessage)setMetaStatus(metaCallbackMessage,'error');
+      else setMetaStatus(status.message,status.reason==='authorization_expired'?'error':'warn');
+      $('#metaConnect').classList.remove('hidden');$('#metaConnect').textContent=status.reason==='authorization_expired'?'重新连接 Meta':'连接 Meta';
+      $('#metaConnect').classList.remove('busy');$('#metaConnect').removeAttribute('aria-busy');
+      $('#metaAssets').classList.add('hidden');$('#metaRefresh').classList.add('hidden');$('#metaDisconnect').classList.add('hidden');
+      setManualVisible(true,status.reason==='authorization_expired'?'手动补充 / 修正数据（授权已过期，非必填）':'手动补充 / 修正数据（尚未连接，非必填）');return
+    }
+    $('#metaConnect').classList.add('hidden');$('#metaRefresh').classList.remove('hidden');$('#metaDisconnect').classList.remove('hidden');$('#metaAssets').classList.remove('hidden');
+    setMetaStatus(`已连接：${status.user_name||'Meta 账号'}。请选择页面和日期后同步。`,'ok');
+    setManualVisible(false);
+    if(refresh){const data=await api('/api/meta/assets?refresh=true');setAssets(data.items)}
+    else setAssets(status.assets||[]);
+    resumeStoredMetaSync()
+  }catch(err){
+    metaConnected=false;setMetaStatus(err.message,'error');setManualVisible(true,'手动补充 / 修正数据（Meta 状态异常，非必填）')
+  }
+}
+$('#metaConnect').onclick=()=>{
+  const link=$('#metaConnect');
+  link.classList.add('busy');link.setAttribute('aria-busy','true');link.textContent='正在前往 Meta…';
+  setMetaStatus('正在跳转到 Meta 授权页面，请在 Xuan Dong 账号下点击“继续”…');
+};
+$('#metaRefresh').onclick=async()=>{
+  $('#metaRefresh').disabled=true;setMetaStatus('正在刷新 Meta 账号列表…');
+  try{await loadMetaStatus(true);setMetaStatus('账号列表已刷新，请选择页面并同步。','ok')}
+  catch(err){setMetaStatus(err.message,'error');setManualVisible(true,'手动补充 / 修正数据（账号读取失败，非必填）')}
+  finally{$('#metaRefresh').disabled=false}
+};
+$('#metaDisconnect').onclick=async()=>{
+  if(!confirm('确定断开本系统中的 Meta 授权吗？之后需要重新连接才能自动取数。'))return;
+  try{await api('/api/meta/disconnect',{method:'POST'});clearMetaSync('Meta 已断开。');await loadMetaStatus()}
+  catch(err){setMetaStatus(err.message,'error')}
+};
+$('#metaSync').onclick=async()=>{
+  const pageId=$('#metaPage').value,start=$('[name=report_start]').value,end=$('[name=report_end]').value;
+  if(!pageId){alert('请先选择 Facebook 页面');return}if(!start||!end){alert('请先填写报告开始和结束日期');return}
+  const btn=$('#metaSync');btn.disabled=true;metaSyncPollSerial++;activeMetaSync=null;$('[name=meta_sync_id]').value='';
+  $('#metaPreview').classList.add('hidden');$('#metaWarnings').classList.add('hidden');
+  const descriptor=currentMetaSyncDescriptor();setMetaSyncProgress(true,3,'正在提交后台同步任务');setMetaStatus('正在创建 Meta 后台同步任务…');
+  try{
+    const job=await api('/api/meta/sync',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(descriptor)});
+    const stored={id:job.id,...descriptor};localStorage.setItem(metaSyncJobKey,JSON.stringify(stored));
+    await pollMetaSync(job.id,descriptor)
+  }catch(err){
+    activeMetaSyncJobId='';localStorage.removeItem(metaSyncJobKey);setMetaSyncProgress(false);setMetaStatus(err.message,'error');
+    const expired=err.status===401||err.detail?.reconnect;setManualVisible(true,expired?'手动补充 / 修正数据（授权失效，非必填）':'手动补充 / 修正数据（同步失败，非必填）');
+    if(expired){metaConnected=false;$('#metaConnect').classList.remove('hidden');$('#metaConnect').textContent='重新连接 Meta'}
+  }finally{if(!activeMetaSyncJobId)btn.disabled=false}
+};
+document.querySelectorAll('#manualFallback input,#manualFallback textarea').forEach(el=>el.addEventListener('input',()=>{$('[name=manual_override]').value='1'}));
+if(metaQuery==='connected')setMetaStatus('Meta 授权成功，正在读取可管理账号…','ok');
+if(metaCallbackMessage)setMetaStatus(metaCallbackMessage,'error');
+if(metaQuery)history.replaceState({},'',location.pathname);
+function bytes(n){if(n<1024*1024)return `${Math.ceil(n/1024)} KB`;return `${(n/1024/1024).toFixed(1)} MB`}
+function popoBadge(j){
+  if(j.popo_status==='completed'&&j.popo_url)return `<a class="popo-badge done" href="${esc(j.popo_url)}" target="_blank" rel="noopener">✅ 打开 POPO 原生报告</a>`;
+  if(j.popo_status==='pending'||j.popo_status==='processing')return '<span class="popo-badge wait">⏳ POPO 交付中</span>';
+  if(j.popo_status==='failed')return '<span class="popo-badge fail">❌ POPO 交付失败</span>';
+  return ''
+}
+function popoAction(j){
+  if(j.status!=='succeeded'||j.popo_status==='completed'||j.popo_status==='pending'||j.popo_status==='processing')return '';
+  return `<button class="popo-retry" type="button" data-popo-retry="${j.id}">${j.popo_status==='failed'?'重试 POPO 交付':'交付 POPO'}</button>`
+}
+function reportRetryAction(j){
+  return j.status==='failed'?`<button class="report-retry" type="button" data-report-retry="${j.id}">重试生成</button>`:''
+}
+function renderJob(j){
+  const files=j.artifacts||[];const links=files.map(f=>`<a href="${f.url}">${f.kind==='report'?'⬇ 下载 Word':'数据明细'} · ${esc(f.name)} (${bytes(f.size)})</a>`).join('');
+  return `<article class="job"><div class="job-head"><strong>${esc(j.brand)}</strong><span class="badge">${esc(j.report_type_label||'报告')}</span><span class="badge ${j.status}">${labels[j.status]||esc(j.status)}</span>${popoBadge(j)}<span class="spacer"></span><span class="meta">${esc(j.created_by||'')} · ${esc(j.created_at.replace('T',' '))}</span></div><div class="meta">${esc(j.report_start)} — ${esc(j.report_end)}</div>${j.error?`<div class="error">${esc(j.error)}</div>`:''}${j.popo_error?`<div class="popo-error">POPO：${esc(j.popo_error)}</div>`:''}<div class="files">${links}${reportRetryAction(j)}${popoAction(j)}<button class="log" type="button" data-log="${j.id}">运行日志</button></div></article>`
+}
+async function loadJobs(){try{const j=await api('/api/jobs');$('#jobs').innerHTML=j.items.length?j.items.map(renderJob).join(''):'<div class="meta">还没有任务。</div>'}catch(e){$('#jobs').innerHTML=`<div class="error">${esc(e.message)}</div>`}}
+$('#refresh').onclick=loadJobs;
+$('#reportForm').onsubmit=async e=>{
+  e.preventDefault();const who=$('#createdBy').value.trim();if(!who){$('#createdBy').focus();alert('请先填写“你是谁”');return}
+  if(activeMetaSyncJobId){alert('Meta 数据仍在后台同步，请等待进度达到 100% 后再生成报告。');return}
+  if(metaConnected&&!$('[name=meta_sync_id]').value&&!$('#manualFallback').open){alert('请先选择 Meta 账号并同步所选日期的数据。');return}
+  if($('[name=linkedin_mode]').value==='personal'&&!$('[name=linkedin_personal_top10]').files.length&&!$('[name=linkedin_personal_screenshots]').files.length){alert('LinkedIn 个人账号模式至少需要上传 Top 10 汇总表或一张截图');return}
+  const fd=new FormData(e.currentTarget);fd.set('created_by',who);const btn=$('#submitBtn');btn.disabled=true;$('#submitStatus').textContent='正在上传并创建任务…';
+  try{const job=await api('/api/jobs',{method:'POST',body:fd});$('#submitStatus').textContent=`任务 ${job.id} 已进入队列`;await loadJobs();window.scrollTo({top:document.body.scrollHeight,behavior:'smooth'})}
+  catch(err){$('#submitStatus').textContent='';alert(err.message)}
+  finally{btn.disabled=false}
+};
+$('#jobs').onclick=async e=>{
+  const reportRetry=e.target.closest('[data-report-retry]');
+  if(reportRetry){reportRetry.disabled=true;reportRetry.textContent='已提交…';try{await api(`/api/jobs/${encodeURIComponent(reportRetry.dataset.reportRetry)}/retry`,{method:'POST'});await loadJobs()}catch(err){alert(`报告重试提交失败：${err.message}`);reportRetry.disabled=false}return}
+  const retry=e.target.closest('[data-popo-retry]');
+  if(retry){retry.disabled=true;retry.textContent='已提交…';try{await api(`/api/jobs/${encodeURIComponent(retry.dataset.popoRetry)}/popo/retry`,{method:'POST'});await loadJobs()}catch(err){alert(`POPO 交付提交失败：${err.message}`);retry.disabled=false}return}
+  const btn=e.target.closest('[data-log]');if(!btn)return;$('#logText').textContent='读取中…';$('#logDialog').showModal();try{const j=await api(`/api/jobs/${encodeURIComponent(btn.dataset.log)}/log`);$('#logText').textContent=j.text||'暂无日志'}catch(err){$('#logText').textContent=err.message}
+};
+$('#closeLog').onclick=()=>$('#logDialog').close();
+loadPopoStatus();loadMetaStatus(metaQuery==='connected');loadJobs();setInterval(loadJobs,5000);
+</script>
+</body>
+</html>

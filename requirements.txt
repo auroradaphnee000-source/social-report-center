@@ -1,0 +1,8 @@
+fastapi==0.139.0
+uvicorn==0.51.0
+python-docx==1.2.0
+openpyxl==3.1.5
+Pillow==12.2.0
+xlrd==2.0.2
+python-multipart==0.0.32
+cryptography==46.0.7

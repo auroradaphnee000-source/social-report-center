@@ -1,0 +1,14 @@
+services:
+  social-report:
+    build: .
+    ports:
+      - "127.0.0.1:8090:8080"
+    env_file: .env
+    environment:
+      APP_DATA_DIR: /app/runtime
+      HOME: /app/runtime/fabric-home
+    volumes:
+      - runtime:/app/runtime
+    restart: unless-stopped
+volumes:
+  runtime:

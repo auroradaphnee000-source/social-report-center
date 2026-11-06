@@ -1,0 +1,86 @@
+{
+  "version": "1.5.6",
+  "provenance": "reconstructed pre-optimization local baseline; not a production export",
+  "files": [
+    {
+      "path": "webapp/__init__.py",
+      "before_public_adjustments_sha256": "dc7c51e78d09673199f957d3f378c46fcf639d150e56527e8b5f2fb7dd381404",
+      "sha256": "dc7c51e78d09673199f957d3f378c46fcf639d150e56527e8b5f2fb7dd381404"
+    },
+    {
+      "path": "webapp/app.py",
+      "before_public_adjustments_sha256": "56769f221b7d483612852151abcd7c08e09edf92fae3e2c53abcdd219226b802",
+      "sha256": "56769f221b7d483612852151abcd7c08e09edf92fae3e2c53abcdd219226b802"
+    },
+    {
+      "path": "webapp/meta.py",
+      "before_public_adjustments_sha256": "863c57f43e73e9925a43cb1d6d70a86fe39912cb445ee67b79b4d5652346d8fb",
+      "sha256": "0cdc38391cc1d7b19dec73378a0c1c2fe2047dba0fa6c09f8cfba61c2583ca55"
+    },
+    {
+      "path": "webapp/popo.py",
+      "before_public_adjustments_sha256": "4f61029004bf292fbb3df0213e535cb3cb4a266c355709fc51298b46dd172d11",
+      "sha256": "ca6c4c658e3e7742efdeda4ca68c4c0a43228ca21bf01bab878b85669200b6ee"
+    },
+    {
+      "path": "webapp/popo_auth.py",
+      "before_public_adjustments_sha256": "51fc69cce429c35e1f8cc5c9d469fb86c7c841eb28fe4d8f529ead6cd65ed24f",
+      "sha256": "51fc69cce429c35e1f8cc5c9d469fb86c7c841eb28fe4d8f529ead6cd65ed24f"
+    },
+    {
+      "path": "webapp/popo_dns_patch.cjs",
+      "before_public_adjustments_sha256": "bb6395aa18faf2bc272f20db14ebe181cae46057561e0253cc2313ec380b1796",
+      "sha256": "bb6395aa18faf2bc272f20db14ebe181cae46057561e0253cc2313ec380b1796"
+    },
+    {
+      "path": "webapp/static/index.html",
+      "before_public_adjustments_sha256": "3037e22510a905011716c90ea190cdca7c36b569ef20400be74e7fddadfd4377",
+      "sha256": "582e9077de9a5b6743bbed45cbb6ebe0afe1582a867c781660d02a6b4452d740"
+    },
+    {
+      "path": "social_report/__init__.py",
+      "before_public_adjustments_sha256": "7def35d8055fb21a99684434a54deafd1106a764b69c3f3552e90723bf902220",
+      "sha256": "7def35d8055fb21a99684434a54deafd1106a764b69c3f3552e90723bf902220"
+    },
+    {
+      "path": "social_report/parser.py",
+      "before_public_adjustments_sha256": "6f5abce02749f5f9b885f1e7038487652e13420b88f3cb872e0208cc3296ad8c",
+      "sha256": "6f5abce02749f5f9b885f1e7038487652e13420b88f3cb872e0208cc3296ad8c"
+    },
+    {
+      "path": "social_report/report.py",
+      "before_public_adjustments_sha256": "3d184a3c86ac5a1aee22af88f20e812b7ef3f1377f8f02126437c7ddfcc8522f",
+      "sha256": "3d184a3c86ac5a1aee22af88f20e812b7ef3f1377f8f02126437c7ddfcc8522f"
+    },
+    {
+      "path": "tests/test_app.py",
+      "before_public_adjustments_sha256": "274fb78ad98b4d17527946d2b93814bf6537c250ab7afeed9bcc7ae79ca7036f",
+      "sha256": "c2d62432ac4b0ca375487c7ff19a5af574366933551870079cfe0ede07429096"
+    },
+    {
+      "path": "tests/test_linkedin_modes.py",
+      "before_public_adjustments_sha256": "13cce3b5ee906e36cb5f16628ce6d9574372b41bdf8b8858228416183eccf9b7",
+      "sha256": "13cce3b5ee906e36cb5f16628ce6d9574372b41bdf8b8858228416183eccf9b7"
+    },
+    {
+      "path": "tests/test_linkedin_parser.py",
+      "before_public_adjustments_sha256": "d9eea6aafb17ada733362b9efdd930f92d5f5d0ac36c90feb3aa5605ea4dbd3f",
+      "sha256": "d9eea6aafb17ada733362b9efdd930f92d5f5d0ac36c90feb3aa5605ea4dbd3f"
+    },
+    {
+      "path": "tests/test_meta.py",
+      "before_public_adjustments_sha256": "006ccdc83290646f652e7a669e84c9c7c58fc9d1e0f55baff655a5b99b9b1515",
+      "sha256": "006ccdc83290646f652e7a669e84c9c7c58fc9d1e0f55baff655a5b99b9b1515"
+    },
+    {
+      "path": "tests/test_popo.py",
+      "before_public_adjustments_sha256": "09070d20f89f69810532153271a720bc406c4cf8d32342fe11723f1927035c82",
+      "sha256": "09070d20f89f69810532153271a720bc406c4cf8d32342fe11723f1927035c82"
+    },
+    {
+      "path": "tests/test_popo_auth.py",
+      "before_public_adjustments_sha256": "5f64eba0ba1d7bfde6b1d2cdbf892c533e779e15bc6c7a245d94fb72734fa4ff",
+      "sha256": "5f64eba0ba1d7bfde6b1d2cdbf892c533e779e15bc6c7a245d94fb72734fa4ff"
+    }
+  ]
+}
